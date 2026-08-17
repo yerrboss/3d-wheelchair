@@ -129,5 +129,4 @@ export default function ProductConfigurator() {
         
       </div>
     </div>
-  );
-}
+  
