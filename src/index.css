@@ -11,3 +11,32 @@
 body { margin: 0; min-width: 1120px; }
 button, input { font: inherit; }
 button { cursor: pointer; }
+
+html {
+  scrollbar-color: #53635b #171b1a;
+  scrollbar-width: thin;
+}
+
+* {
+  scrollbar-color: #53635b #1b211f;
+  scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+  width: 9px;
+  height: 9px;
+}
+
+*::-webkit-scrollbar-track {
+  background: #1b211f;
+}
+
+*::-webkit-scrollbar-thumb {
+  background: #53635b;
+  border: 2px solid #1b211f;
+  border-radius: 8px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+  background: #89b9a0;
+}
