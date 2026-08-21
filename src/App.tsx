@@ -20,7 +20,7 @@ type MotionKey = 'recline' | 'decline' | 'legElevation'
 type DimensionKey = 'seat' | 'backrest'
 type Dimensions = { width: number; height: number; depth: number }
 type FeatureState = { recline: number; decline: number; legElevation: number; speeds: Record<MotionKey, number>; functions: Record<MotionKey, string>; custom: string[] }
-type AppSnapshot = { config: Record<ComponentKey, string>; activeAccessories: string[]; customParts: ComponentOption[]; hiddenParts: ComponentKey[]; colorOverrides: Record<string, string>; shapeOverrides: Record<string, string>; notes: Record<string, string>; features: FeatureState; dimensions: Record<DimensionKey, Dimensions>; casterSize: number; casterPosition: { x: number; z: number } }
+type AppSnapshot = { config: Record<ComponentKey, string>; activeAccessories: string[]; customParts: ComponentOption[]; hiddenParts: ComponentKey[]; colorOverrides: Record<string, string>; shapeOverrides: Record<string, string>; notes: Record<string, string>; features: FeatureState; dimensions: Record<DimensionKey, Dimensions>; wheelchairWidth: number; wheelchairHeight: number; wheelchairDepth: number; casterSize: number; casterPosition: { x: number; z: number } }
 
 const componentGroups: { key: ComponentKey; label: string; items: ComponentOption[] }[] = [
   { key: 'frame', label: 'Frame', items: [
@@ -89,7 +89,7 @@ function CameraController({ view, zoom }: { view: string; zoom: number }) {
   return null
 }
 
-function WheelchairScene({ config, selected, setSelected, activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, features, dimensions, casterSize, casterPosition, setCasterPosition, view, zoom, technical }: { config: Record<ComponentKey, string>; selected: ComponentKey; setSelected: (key: ComponentKey) => void; activeAccessories: string[]; customParts: ComponentOption[]; hiddenParts: ComponentKey[]; colorOverrides: Record<string, string>; shapeOverrides: Record<string, string>; features: FeatureState; dimensions: Record<DimensionKey, Dimensions>; casterSize: number; casterPosition: { x: number; z: number }; setCasterPosition: (position: { x: number; z: number }) => void; view: string; zoom: number; technical: boolean }) {
+function WheelchairScene({ config, selected, setSelected, activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, features, dimensions, wheelchairWidth, wheelchairHeight, wheelchairDepth, casterSize, casterPosition, view, zoom, technical }: { config: Record<ComponentKey, string>; selected: ComponentKey; setSelected: (key: ComponentKey) => void; activeAccessories: string[]; customParts: ComponentOption[]; hiddenParts: ComponentKey[]; colorOverrides: Record<string, string>; shapeOverrides: Record<string, string>; features: FeatureState; dimensions: Record<DimensionKey, Dimensions>; wheelchairWidth: number; wheelchairHeight: number; wheelchairDepth: number; casterSize: number; casterPosition: { x: number; z: number }; view: string; zoom: number; technical: boolean }) {
   const find = (key: ComponentKey) => {
     const group = componentGroups.find((item) => item.key === key)!
     return [...group.items, ...customParts].find((item) => item.id === config[key])!
@@ -105,28 +105,32 @@ function WheelchairScene({ config, selected, setSelected, activeAccessories, cus
   const handles = find('handles')
   const hasAccessory = (id: string) => activeAccessories.includes(id)
   const customAccessory = customParts.find((item) => activeAccessories.includes(item.id))
+  const wheelTrack = wheelchairWidth / 2 - 0.14
+  const guardTrack = wheelchairWidth / 2 - 0.12
+  const depthScale = wheelchairDepth / 2.7
+  const modelScale = wheelchairHeight / 3.6
   return <>
     <CameraController view={view} zoom={zoom} />
     <ambientLight intensity={0.65} />
     <directionalLight position={[4, 8, 5]} intensity={2.2} castShadow shadow-mapSize={[2048, 2048]} />
     <Environment preset="studio" />
-    <group rotation={[0, -0.35, 0]} position={[0, -0.15, 0]}>
+    <group rotation={[0, -0.35, 0]} position={[0, -0.15, 0]} scale={[modelScale * depthScale, modelScale, modelScale]}>
       {!hiddenParts.includes('frame') && <group onClick={(event) => { event.stopPropagation(); setSelected('frame') }}>
-        <RoundedBox args={[2.7, 0.15, 1.45]} radius={0.07} position={[0, 1.2, 0]}><meshStandardMaterial color={colorFor(frame)} metalness={0.78} roughness={0.22} /></RoundedBox>
+        <RoundedBox args={[2.7, 0.15, Math.max(1.15, wheelchairWidth - 0.55)]} radius={0.07} position={[0, 1.2, 0]}><meshStandardMaterial color={colorFor(frame)} metalness={0.78} roughness={0.22} /></RoundedBox>
         <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, 0.38]} rotation={[0, 0.15, -0.28]}><meshStandardMaterial color={colorFor(frame)} metalness={0.8} roughness={0.2} /></RoundedBox>
         <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, -0.38]} rotation={[0, -0.15, -0.28]}><meshStandardMaterial color={colorFor(frame)} metalness={0.8} roughness={0.2} /></RoundedBox>
         {selected === 'frame' && <mesh position={[0, 1.29, 0]}><boxGeometry args={[2.88, 0.02, 1.62]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
       </group>}
       {!hiddenParts.includes('seat') && <group rotation={[0, 0, features.decline * Math.PI / 180]} onClick={(event) => { event.stopPropagation(); setSelected('seat') }}>
         <RoundedBox args={[dimensions.seat.depth, dimensions.seat.height, dimensions.seat.width]} radius={0.08} position={[0.08, 1.38, 0]}><meshStandardMaterial color={colorFor(seat)} roughness={0.88} /></RoundedBox>
-        {selected === 'seat' && <mesh position={[0.08, 1.49, 0]}><boxGeometry args={[dimensions.seat.depth + 0.11, 0.02, dimensions.seat.width + 0.1]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
+          {selected === 'seat' && <mesh position={[0.08, 1.49, 0]}><boxGeometry args={[dimensions.seat.depth + 0.11, 0.02, dimensions.seat.width + 0.1]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
       </group>}
       {!hiddenParts.includes('backrest') && <group rotation={[0, 0, -features.recline * Math.PI / 180]} onClick={(event) => { event.stopPropagation(); setSelected('backrest') }}>
         <RoundedBox args={[dimensions.backrest.depth, dimensions.backrest.height, dimensions.backrest.width]} radius={0.07} position={[-0.96, 2.05, 0]} rotation={[0, 0, -0.06]}><meshStandardMaterial color={colorFor(back)} metalness={0.25} roughness={0.55} /></RoundedBox>
         {selected === 'backrest' && <mesh position={[-1.06, 2.05, 0]} rotation={[0, 0, -0.06]}><boxGeometry args={[dimensions.backrest.depth + 0.02, dimensions.backrest.height + 0.11, dimensions.backrest.width + 0.12]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
       </group>}
-      {!hiddenParts.includes('wheels') && <><Wheel x={0.05} z={0.86} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /><Wheel x={0.05} z={-0.86} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /></>}
-      {!hiddenParts.includes('casters') && <group position={[casterPosition.x, 0, casterPosition.z]} onClick={(event) => { event.stopPropagation(); setSelected('casters') }} onPointerDown={(event) => { event.stopPropagation() }} onPointerMove={(event) => { if (event.buttons === 1) { event.stopPropagation(); setCasterPosition({ x: Math.max(0.55, Math.min(1.65, event.point.x)), z: Math.max(-0.72, Math.min(0.72, event.point.z)) }) } }}>
+      {!hiddenParts.includes('wheels') && <><Wheel x={0.05} z={wheelTrack} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /><Wheel x={0.05} z={-wheelTrack} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /></>}
+      {!hiddenParts.includes('casters') && <group position={[casterPosition.x, 0, casterPosition.z]} onClick={(event) => { event.stopPropagation(); setSelected('casters') }}>
         <mesh position={[0, 0.38, 0.52]}><torusGeometry args={[casterSize / 2, casterSize * 0.12, 14, 32]} /><meshStandardMaterial color={colorFor(caster)} roughness={0.65} /></mesh>
         <mesh position={[0, 0.38, -0.52]}><torusGeometry args={[casterSize / 2, casterSize * 0.12, 14, 32]} /><meshStandardMaterial color={colorFor(caster)} roughness={0.65} /></mesh>
         <mesh position={[0, 0.75, 0]}><boxGeometry args={[0.12, 0.6, 1.18]} /><meshStandardMaterial color="#a9b0aa" metalness={0.72} roughness={0.3} /></mesh>
@@ -135,8 +139,8 @@ function WheelchairScene({ config, selected, setSelected, activeAccessories, cus
         <mesh position={[1.12, 0.34, 0]} rotation={[0, 0, -0.08]}><boxGeometry args={[0.72, 0.1, 1.0]} /><meshStandardMaterial color={colorFor(foot)} metalness={0.58} roughness={0.28} /></mesh>
       </group>}
       {!hiddenParts.includes('sideguards') && <group onClick={(event) => { event.stopPropagation(); setSelected('sideguards') }}>
-        <mesh position={[-0.05, 1.62, 0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
-        <mesh position={[-0.05, 1.62, -0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
+        <mesh position={[-0.05, 1.62, guardTrack]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
+        <mesh position={[-0.05, 1.62, -guardTrack]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
       </group>}
       {!hiddenParts.includes('accessories') && <group onClick={(event) => { event.stopPropagation(); setSelected('accessories') }}>
         {hasAccessory('headrest') && <><mesh position={[-1.2, 2.82, 0]}><sphereGeometry args={[0.24, 24, 16]} /><meshStandardMaterial color="#242c2e" roughness={0.42} /></mesh><mesh position={[-1.2, 2.63, 0]}><boxGeometry args={[0.1, 0.36, 0.1]} /><meshStandardMaterial color="#a9b0aa" metalness={0.72} /></mesh></>}
@@ -183,6 +187,9 @@ function App() {
   const [customColor, setCustomColor] = useState('#d18b39')
   const [features, setFeatures] = useState<FeatureState>({ recline: 0, decline: 0, legElevation: 0, speeds: { recline: 2.5, decline: 1.8, legElevation: 1.2 }, functions: { recline: 'Rest position', decline: 'Pressure relief', legElevation: 'Circulation support' }, custom: [] })
   const [dimensions, setDimensions] = useState<Record<DimensionKey, Dimensions>>({ seat: { width: 1.2, height: 0.18, depth: 2.05 }, backrest: { width: 1.16, height: 1.45, depth: 0.16 } })
+  const [wheelchairWidth, setWheelchairWidth] = useState(2)
+  const [wheelchairHeight, setWheelchairHeight] = useState(3.6)
+  const [wheelchairDepth, setWheelchairDepth] = useState(2.7)
   const [casterSize, setCasterSize] = useState(0.72)
   const [casterPosition, setCasterPosition] = useState({ x: 1.03, z: 0 })
   const [customFeatureName, setCustomFeatureName] = useState('')
@@ -192,9 +199,9 @@ function App() {
   const selectedGroup = componentGroups.find((group) => group.key === selected)!
   const selectedOption = [...selectedGroup.items, ...customParts].find((item) => item.id === config[selected]) ?? selectedGroup.items[0]
   const totalWeight = componentGroups.reduce((sum, group) => sum + (hiddenParts.includes(group.key) ? 0 : (group.items.find((item) => item.id === config[group.key])?.weight ?? 0)), 10.4) + activeAccessories.reduce((sum, id) => sum + (customParts.find((item) => item.id === id)?.weight ?? componentGroups.find((group) => group.key === 'accessories')!.items.find((item) => item.id === id)?.weight ?? 0), 0)
-  const snapshot = (): AppSnapshot => ({ config, activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, notes, features, dimensions, casterSize, casterPosition })
+  const snapshot = (): AppSnapshot => ({ config, activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, notes, features, dimensions, wheelchairWidth, wheelchairHeight, wheelchairDepth, casterSize, casterPosition })
   const restore = (next: AppSnapshot) => {
-    setConfig(next.config); setActiveAccessories(next.activeAccessories); setCustomParts(next.customParts); setHiddenParts(next.hiddenParts); setColorOverrides(next.colorOverrides); setShapeOverrides(next.shapeOverrides); setNotes(next.notes); setFeatures(next.features); setDimensions(next.dimensions); setCasterSize(next.casterSize); setCasterPosition(next.casterPosition)
+    setConfig(next.config); setActiveAccessories(next.activeAccessories); setCustomParts(next.customParts); setHiddenParts(next.hiddenParts); setColorOverrides(next.colorOverrides); setShapeOverrides(next.shapeOverrides); setNotes(next.notes); setFeatures(next.features); setDimensions(next.dimensions); setWheelchairWidth(next.wheelchairWidth); setWheelchairHeight(next.wheelchairHeight); setWheelchairDepth(next.wheelchairDepth); setCasterSize(next.casterSize); setCasterPosition(next.casterPosition)
   }
   const commitSnapshot = (next: AppSnapshot) => {
     setHistory((current) => [...current, snapshot()])
@@ -228,6 +235,9 @@ function App() {
   const setFeatureSpeed = (key: MotionKey, value: number) => commitSnapshot({ ...snapshot(), features: { ...features, speeds: { ...features.speeds, [key]: value } } })
   const setFeatureFunction = (key: MotionKey, value: string) => setFeatures((current) => ({ ...current, functions: { ...current.functions, [key]: value } }))
   const setDimension = (key: DimensionKey, field: keyof Dimensions, value: number) => commitSnapshot({ ...snapshot(), dimensions: { ...dimensions, [key]: { ...dimensions[key], [field]: value } } })
+  const setWheelchairWidthValue = (value: number) => commitSnapshot({ ...snapshot(), wheelchairWidth: value })
+  const setWheelchairHeightValue = (value: number) => commitSnapshot({ ...snapshot(), wheelchairHeight: value })
+  const setWheelchairDepthValue = (value: number) => commitSnapshot({ ...snapshot(), wheelchairDepth: value })
   const setCasterSizeValue = (value: number) => commitSnapshot({ ...snapshot(), casterSize: value })
   const setCasterPositionValue = (axis: 'x' | 'z', value: number) => setCasterPosition((current) => ({ ...current, [axis]: value }))
   const addCustomFeature = () => {
@@ -267,7 +277,7 @@ function App() {
     restore(next)
   }
   const exportConfiguration = () => {
-      const payload = { configurationId: 'WC-26-A7F92', project: 'Custom Active // V4', units: 'mm', estimatedWeightKg: Number(totalWeight.toFixed(1)), components: config, accessories: activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, notes, features, dimensions, casterSize, casterPosition, material }
+      const payload = { configurationId: 'WC-26-A7F92', project: 'Custom Active // V4', units: 'mm', estimatedWeightKg: Number(totalWeight.toFixed(1)), components: config, accessories: activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, notes, features, dimensions, wheelchairWidth, wheelchairHeight, wheelchairDepth, casterSize, casterPosition, material }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -303,13 +313,14 @@ function App() {
 
         <section className="viewport-panel">
           <div className="viewport-toolbar"><div className="mode-switch"><button className={!technical ? 'active' : ''} onClick={() => setTechnical(false)}>Presentation</button><button className={technical ? 'active' : ''} onClick={() => setTechnical(true)}>Technical</button></div><div className="viewport-status"><span className="live-dot" /> Live preview <span className="status-divider" /> <span>mm</span></div><button className="icon-button" title="Focus selected module" onClick={() => setView('isometric')}><Eye size={16} /></button></div>
-          <div className="scene-wrap"><Canvas camera={{ position: [4.6, 3.1, 5.3], fov: 42 }} shadows><color attach="background" args={['#222725']} /><fog attach="fog" args={['#222725', 7, 13]} /><WheelchairScene config={config} selected={selected} setSelected={setSelected} activeAccessories={activeAccessories} customParts={customParts} hiddenParts={hiddenParts} colorOverrides={colorOverrides} shapeOverrides={shapeOverrides} features={features} dimensions={dimensions} casterSize={casterSize} casterPosition={casterPosition} setCasterPosition={setCasterPosition} view={view} zoom={zoom} technical={technical} /><OrbitControls makeDefault enablePan={false} minDistance={3.4} maxDistance={8} target={[0, 0.8, 0]} /></Canvas><div className="scene-label"><span className="label-kicker">AURA 01</span><span>{technical ? 'TECHNICAL DIMENSION VIEW' : 'ACTIVE PERFORMANCE CHASSIS'}</span></div><div className="scene-crosshair">+</div></div>
+          <div className="scene-wrap"><Canvas camera={{ position: [4.6, 3.1, 5.3], fov: 42 }} shadows><color attach="background" args={['#222725']} /><fog attach="fog" args={['#222725', 7, 13]} /><WheelchairScene config={config} selected={selected} setSelected={setSelected} activeAccessories={activeAccessories} customParts={customParts} hiddenParts={hiddenParts} colorOverrides={colorOverrides} shapeOverrides={shapeOverrides} features={features} dimensions={dimensions} wheelchairWidth={wheelchairWidth} wheelchairHeight={wheelchairHeight} wheelchairDepth={wheelchairDepth} casterSize={casterSize} casterPosition={casterPosition} view={view} zoom={zoom} technical={technical} /><OrbitControls makeDefault enablePan={false} minDistance={3.4} maxDistance={8} target={[0, 0.8, 0]} /></Canvas><div className="scene-label"><span className="label-kicker">AURA 01</span><span>{technical ? 'TECHNICAL DIMENSION VIEW' : 'ACTIVE PERFORMANCE CHASSIS'}</span></div><div className="scene-crosshair">+</div></div>
           <div className="view-dock"><div className="view-list">{['isometric', 'front', 'rear', 'left', 'right', 'top'].map((item) => <button className={view === item ? 'active' : ''} key={item} onClick={() => setView(item)}>{item}</button>)}</div><button className="reset-view" onClick={() => { setView('isometric'); setZoom(1) }}><RotateCcw size={14} /> Reset view</button><div className="zoom-controls"><button onClick={() => setZoom((value) => Math.min(1.3, Number((value + 0.1).toFixed(1))))}><Minus size={15} /></button><span>{Math.round(100 / zoom)}%</span><button onClick={() => setZoom((value) => Math.max(0.7, Number((value - 0.1).toFixed(1))))}><Plus size={15} /></button></div></div>
         </section>
 
         <aside className="right-panel">
           <div className="inspector-heading"><div><span className="eyebrow">SELECTED MODULE</span><h2>{selectedGroup.label}</h2></div><button className="icon-button" title="Clear selection" onClick={() => announce('Selection remains available in the viewport')}><X size={16} /></button></div>
           <div className="selected-hero"><div className="hero-swatch" style={{ background: selectedOption.color }}><span className="hero-grid" /></div><div><span className="eyebrow">CURRENT CONFIGURATION</span><strong>{selectedOption.name}</strong><small>{selectedOption.description}</small></div></div>
+          <div className="dimension-editor width-editor"><div className="dimension-editor-title">Wheelchair envelope <span>model dimensions</span></div><label className="dimension-control"><span>Width<strong>{wheelchairWidth.toFixed(2)} m</strong></span><input type="range" min="1.4" max="2.5" step="0.01" value={wheelchairWidth} onChange={(event) => setWheelchairWidthValue(Number(event.target.value))} /></label><label className="dimension-control"><span>Height<strong>{wheelchairHeight.toFixed(2)} m</strong></span><input type="range" min="2.8" max="4.5" step="0.01" value={wheelchairHeight} onChange={(event) => setWheelchairHeightValue(Number(event.target.value))} /></label><label className="dimension-control"><span>Depth<strong>{wheelchairDepth.toFixed(2)} m</strong></span><input type="range" min="2" max="3.5" step="0.01" value={wheelchairDepth} onChange={(event) => setWheelchairDepthValue(Number(event.target.value))} /></label></div>
           <div className="property-stack"><div className="property"><span>Material</span><strong>{material} <ChevronDown size={13} /></strong></div><div className="property"><span>Shape</span><select className="inline-select" value={shapeOverrides[selectedOption.id] ?? selectedOption.shape ?? 'box'} onChange={(event) => setShapeOverrides((current) => ({ ...current, [selectedOption.id]: event.target.value }))}><option value="box">Box / mount</option><option value="umbrella">Umbrella</option><option value="headset">Sound-proof</option><option value="recliner">Recliner</option></select></div><div className="property"><span>Color</span><strong><input className="color-input" type="color" value={colorOverrides[selectedOption.id] ?? selectedOption.color} onChange={(event) => setColorOverrides((current) => ({ ...current, [selectedOption.id]: event.target.value }))} /> { (colorOverrides[selectedOption.id] ?? selectedOption.color).toUpperCase()}</strong></div>{selected === 'seat' || selected === 'backrest' ? <div className="dimension-editor"><div className="dimension-editor-title">{selected === 'seat' ? 'Seat dimensions' : 'Backrest dimensions'} <span>meters</span></div>{(['width', 'height', 'depth'] as const).map((field) => <label className="dimension-control" key={field}><span>{field}<strong>{dimensions[selected][field].toFixed(2)} m</strong></span><input type="range" min={field === 'height' ? 0.1 : 0.5} max={field === 'height' ? 2.2 : 2.8} step="0.01" value={dimensions[selected][field]} onChange={(event) => setDimension(selected, field, Number(event.target.value))} /></label>)}</div> : selected === 'casters' ? <div className="dimension-editor"><div className="dimension-editor-title">Front caster controls <span>drag in preview</span></div><label className="dimension-control"><span>Size<strong>{casterSize.toFixed(2)} m</strong></span><input type="range" min="0.4" max="1.1" step="0.01" value={casterSize} onChange={(event) => setCasterSizeValue(Number(event.target.value))} /></label><label className="dimension-control"><span>Front / back<strong>{casterPosition.x.toFixed(2)} m</strong></span><input type="range" min="0.55" max="1.65" step="0.01" value={casterPosition.x} onChange={(event) => setCasterPositionValue('x', Number(event.target.value))} /></label><label className="dimension-control"><span>Side offset<strong>{casterPosition.z.toFixed(2)} m</strong></span><input type="range" min="-0.72" max="0.72" step="0.01" value={casterPosition.z} onChange={(event) => setCasterPositionValue('z', Number(event.target.value))} /></label></div> : <div className="dimension-row"><div><span>Width</span><strong>{selected === 'wheels' ? '25' : '45'} <em>cm</em></strong></div><div><span>Height</span><strong>86 <em>cm</em></strong></div></div>}</div>
           <div className="inspector-actions"><button className="primary-action" onClick={() => setCustomized((value) => !value)}>{customized ? 'Customized' : 'Customize'} <Settings2 size={14} /></button><button className="secondary-action" onClick={replaceSelected}>Replace</button><button className="remove-action" onClick={removeSelected}>Remove</button></div>
           <div className="compatibility"><div className="compat-heading"><span className="live-dot" /> Compatibility check <strong>Compatible</strong></div><p>Mounting points align with the Rigid Performance frame.</p></div>
