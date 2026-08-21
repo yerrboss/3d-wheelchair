@@ -1,6 +1,6 @@
 import { Canvas, useThree } from '@react-three/fiber'
 import { ContactShadows, Environment, OrbitControls, RoundedBox, Text } from '@react-three/drei'
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Box, ChevronDown, CircleHelp, Download, Eye, Layers3, Minus, Plus, RotateCcw, Save, Search, Settings2, Undo2, Redo2, X } from 'lucide-react'
 import './App.css'
 
@@ -12,6 +12,7 @@ type ComponentOption = {
   description: string
   weight: number
   color: string
+  shape?: 'box' | 'disc' | 'umbrella' | 'recliner' | 'headset'
   accent?: string
 }
 
@@ -82,8 +83,12 @@ function CameraController({ view, zoom }: { view: string; zoom: number }) {
   return null
 }
 
-function WheelchairScene({ config, selected, setSelected, activeAccessories, view, zoom, technical }: { config: Record<ComponentKey, string>; selected: ComponentKey; setSelected: (key: ComponentKey) => void; activeAccessories: string[]; view: string; zoom: number; technical: boolean }) {
-  const find = (key: ComponentKey) => componentGroups.find((group) => group.key === key)!.items.find((item) => item.id === config[key])!
+function WheelchairScene({ config, selected, setSelected, activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, view, zoom, technical }: { config: Record<ComponentKey, string>; selected: ComponentKey; setSelected: (key: ComponentKey) => void; activeAccessories: string[]; customParts: ComponentOption[]; hiddenParts: ComponentKey[]; colorOverrides: Record<string, string>; shapeOverrides: Record<string, string>; view: string; zoom: number; technical: boolean }) {
+  const find = (key: ComponentKey) => {
+    const group = componentGroups.find((item) => item.key === key)!
+    return [...group.items, ...customParts].find((item) => item.id === config[key])!
+  }
+  const colorFor = (item: ComponentOption) => colorOverrides[item.id] ?? item.color
   const frame = find('frame')
   const wheels = find('wheels')
   const seat = find('seat')
@@ -93,50 +98,53 @@ function WheelchairScene({ config, selected, setSelected, activeAccessories, vie
   const guards = find('sideguards')
   const handles = find('handles')
   const hasAccessory = (id: string) => activeAccessories.includes(id)
+  const customAccessory = customParts.find((item) => activeAccessories.includes(item.id))
   return <>
     <CameraController view={view} zoom={zoom} />
     <ambientLight intensity={0.65} />
     <directionalLight position={[4, 8, 5]} intensity={2.2} castShadow shadow-mapSize={[2048, 2048]} />
     <Environment preset="studio" />
     <group rotation={[0, -0.35, 0]} position={[0, -0.15, 0]}>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('frame') }}>
-        <RoundedBox args={[2.7, 0.15, 1.45]} radius={0.07} position={[0, 1.2, 0]}><meshStandardMaterial color={frame.color} metalness={0.78} roughness={0.22} /></RoundedBox>
-        <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, 0.38]} rotation={[0, 0.15, -0.28]}><meshStandardMaterial color={frame.color} metalness={0.8} roughness={0.2} /></RoundedBox>
-        <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, -0.38]} rotation={[0, -0.15, -0.28]}><meshStandardMaterial color={frame.color} metalness={0.8} roughness={0.2} /></RoundedBox>
+      {!hiddenParts.includes('frame') && <group onClick={(event) => { event.stopPropagation(); setSelected('frame') }}>
+        <RoundedBox args={[2.7, 0.15, 1.45]} radius={0.07} position={[0, 1.2, 0]}><meshStandardMaterial color={colorFor(frame)} metalness={0.78} roughness={0.22} /></RoundedBox>
+        <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, 0.38]} rotation={[0, 0.15, -0.28]}><meshStandardMaterial color={colorFor(frame)} metalness={0.8} roughness={0.2} /></RoundedBox>
+        <RoundedBox args={[0.14, 1.35, 0.14]} radius={0.05} position={[-1.12, 0.62, -0.38]} rotation={[0, -0.15, -0.28]}><meshStandardMaterial color={colorFor(frame)} metalness={0.8} roughness={0.2} /></RoundedBox>
         {selected === 'frame' && <mesh position={[0, 1.29, 0]}><boxGeometry args={[2.88, 0.02, 1.62]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('seat') }}>
-        <RoundedBox args={[2.05, 0.18, 1.2]} radius={0.08} position={[0.08, 1.38, 0]}><meshStandardMaterial color={seat.color} roughness={0.88} /></RoundedBox>
+      </group>}
+      {!hiddenParts.includes('seat') && <group onClick={(event) => { event.stopPropagation(); setSelected('seat') }}>
+        <RoundedBox args={[2.05, 0.18, 1.2]} radius={0.08} position={[0.08, 1.38, 0]}><meshStandardMaterial color={colorFor(seat)} roughness={0.88} /></RoundedBox>
         {selected === 'seat' && <mesh position={[0.08, 1.49, 0]}><boxGeometry args={[2.16, 0.02, 1.3]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('backrest') }}>
-        <RoundedBox args={[0.16, 1.45, 1.16]} radius={0.07} position={[-0.96, 2.05, 0]} rotation={[0, 0, -0.06]}><meshStandardMaterial color={back.color} metalness={0.25} roughness={0.55} /></RoundedBox>
+      </group>}
+      {!hiddenParts.includes('backrest') && <group onClick={(event) => { event.stopPropagation(); setSelected('backrest') }}>
+        <RoundedBox args={[0.16, 1.45, 1.16]} radius={0.07} position={[-0.96, 2.05, 0]} rotation={[0, 0, -0.06]}><meshStandardMaterial color={colorFor(back)} metalness={0.25} roughness={0.55} /></RoundedBox>
         {selected === 'backrest' && <mesh position={[-1.06, 2.05, 0]} rotation={[0, 0, -0.06]}><boxGeometry args={[0.02, 1.56, 1.28]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
-      </group>
-      <Wheel x={0.05} z={0.86} color={wheels.color} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} />
-      <Wheel x={0.05} z={-0.86} color={wheels.color} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} />
-      <group onClick={(event) => { event.stopPropagation(); setSelected('casters') }}>
-        <mesh position={[1.03, 0.38, 0.52]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.36, 0.09, 14, 32]} /><meshStandardMaterial color={caster.color} roughness={0.65} /></mesh>
-        <mesh position={[1.03, 0.38, -0.52]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.36, 0.09, 14, 32]} /><meshStandardMaterial color={caster.color} roughness={0.65} /></mesh>
+      </group>}
+      {!hiddenParts.includes('wheels') && <><Wheel x={0.05} z={0.86} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /><Wheel x={0.05} z={-0.86} color={colorFor(wheels)} selected={selected === 'wheels'} onSelect={() => setSelected('wheels')} /></>}
+      {!hiddenParts.includes('casters') && <group onClick={(event) => { event.stopPropagation(); setSelected('casters') }}>
+        <mesh position={[1.03, 0.38, 0.52]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.36, 0.09, 14, 32]} /><meshStandardMaterial color={colorFor(caster)} roughness={0.65} /></mesh>
+        <mesh position={[1.03, 0.38, -0.52]} rotation={[Math.PI / 2, 0, 0]}><torusGeometry args={[0.36, 0.09, 14, 32]} /><meshStandardMaterial color={colorFor(caster)} roughness={0.65} /></mesh>
         <mesh position={[1.03, 0.75, 0]}><boxGeometry args={[0.12, 0.6, 1.18]} /><meshStandardMaterial color="#a9b0aa" metalness={0.72} roughness={0.3} /></mesh>
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('footrest') }}>
-        <mesh position={[1.12, 0.34, 0]} rotation={[0, 0, -0.08]}><boxGeometry args={[0.72, 0.1, 1.0]} /><meshStandardMaterial color={foot.color} metalness={0.58} roughness={0.28} /></mesh>
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('sideguards') }}>
-        <mesh position={[-0.05, 1.62, 0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={guards.color} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
-        <mesh position={[-0.05, 1.62, -0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={guards.color} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('accessories') }}>
+      </group>}
+      {!hiddenParts.includes('footrest') && <group onClick={(event) => { event.stopPropagation(); setSelected('footrest') }}>
+        <mesh position={[1.12, 0.34, 0]} rotation={[0, 0, -0.08]}><boxGeometry args={[0.72, 0.1, 1.0]} /><meshStandardMaterial color={colorFor(foot)} metalness={0.58} roughness={0.28} /></mesh>
+      </group>}
+      {!hiddenParts.includes('sideguards') && <group onClick={(event) => { event.stopPropagation(); setSelected('sideguards') }}>
+        <mesh position={[-0.05, 1.62, 0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
+        <mesh position={[-0.05, 1.62, -0.69]}><boxGeometry args={[1.76, 0.52, 0.035]} /><meshStandardMaterial color={colorFor(guards)} metalness={0.5} roughness={0.25} transparent={guards.id === 'clear-guard'} opacity={guards.id === 'clear-guard' ? 0.42 : 1} /></mesh>
+      </group>}
+      {!hiddenParts.includes('accessories') && <group onClick={(event) => { event.stopPropagation(); setSelected('accessories') }}>
         {hasAccessory('headrest') && <><mesh position={[-1.2, 2.82, 0]}><sphereGeometry args={[0.24, 24, 16]} /><meshStandardMaterial color="#242c2e" roughness={0.42} /></mesh><mesh position={[-1.2, 2.63, 0]}><boxGeometry args={[0.1, 0.36, 0.1]} /><meshStandardMaterial color="#a9b0aa" metalness={0.72} /></mesh></>}
         {hasAccessory('bag') && <mesh position={[0.55, 0.82, 0]}><boxGeometry args={[0.55, 0.48, 0.8]} /><meshStandardMaterial color="#9d764d" roughness={0.85} /></mesh>}
         {hasAccessory('flag') && <><mesh position={[-1.28, 2.9, 0.28]}><boxGeometry args={[0.04, 1.35, 0.04]} /><meshStandardMaterial color="#d9d1ba" metalness={0.3} /></mesh><mesh position={[-1.28, 3.48, 0.28]}><boxGeometry args={[0.38, 0.2, 0.03]} /><meshStandardMaterial color="#d18b39" roughness={0.7} /></mesh></>}
-      </group>
-      <group onClick={(event) => { event.stopPropagation(); setSelected('handles') }}>
-        <mesh position={[-1.17, 2.73, 0.48]} rotation={[0, 0, -0.08]}><cylinderGeometry args={[0.07, 0.07, handles.id === 'folding-handles' ? 0.48 : 0.32, 16]} /><meshStandardMaterial color={handles.color} metalness={0.55} roughness={0.35} /></mesh>
-        <mesh position={[-1.17, 2.73, -0.48]} rotation={[0, 0, -0.08]}><cylinderGeometry args={[0.07, 0.07, handles.id === 'folding-handles' ? 0.48 : 0.32, 16]} /><meshStandardMaterial color={handles.color} metalness={0.55} roughness={0.35} /></mesh>
+        {customAccessory && (shapeOverrides[customAccessory.id] ?? customAccessory.shape) === 'umbrella' && <><mesh position={[0.1, 3, 0]}><cylinderGeometry args={[0.025, 0.025, 1.25, 12]} /><meshStandardMaterial color="#b8c1bd" metalness={0.5} /></mesh><mesh position={[0.1, 3.62, 0]}><sphereGeometry args={[0.6, 24, 12, 0, Math.PI * 2, 0, Math.PI / 2]} /><meshStandardMaterial color={colorFor(customAccessory)} side={2} /></mesh></>}
+        {customAccessory && (shapeOverrides[customAccessory.id] ?? customAccessory.shape) === 'recliner' && <mesh position={[0.45, 1.72, 0]} rotation={[0, 0, -0.3]}><RoundedBox args={[1.2, 0.15, 1.05]} radius={0.08}><meshStandardMaterial color={colorFor(customAccessory)} roughness={0.75} /></RoundedBox></mesh>}
+        {customAccessory && (shapeOverrides[customAccessory.id] ?? customAccessory.shape) === 'headset' && <mesh position={[-1.28, 2.18, 0]}><torusGeometry args={[0.42, 0.08, 14, 28, Math.PI]} /><meshStandardMaterial color={colorFor(customAccessory)} metalness={0.25} roughness={0.6} /></mesh>}
+      </group>}
+      {!hiddenParts.includes('handles') && <group onClick={(event) => { event.stopPropagation(); setSelected('handles') }}>
+        <mesh position={[-1.17, 2.73, 0.48]} rotation={[0, 0, -0.08]}><cylinderGeometry args={[0.07, 0.07, handles.id === 'folding-handles' ? 0.48 : 0.32, 16]} /><meshStandardMaterial color={colorFor(handles)} metalness={0.55} roughness={0.35} /></mesh>
+        <mesh position={[-1.17, 2.73, -0.48]} rotation={[0, 0, -0.08]}><cylinderGeometry args={[0.07, 0.07, handles.id === 'folding-handles' ? 0.48 : 0.32, 16]} /><meshStandardMaterial color={colorFor(handles)} metalness={0.55} roughness={0.35} /></mesh>
         {selected === 'handles' && <mesh position={[-1.17, 2.73, 0]}><boxGeometry args={[0.1, 0.48, 1.18]} /><meshBasicMaterial color="#f2b75e" wireframe /></mesh>}
-      </group>
+      </group>}
       {technical && <group><Text position={[1.8, 2.6, 0]} fontSize={0.12} color="#e4ac56">860 mm OVERALL</Text><Text position={[0.15, -0.45, 0]} fontSize={0.12} color="#e4ac56">450 mm SEAT WIDTH</Text></group>}
       <Text position={[-1.65, -0.08, 0]} rotation={[-Math.PI / 2, 0, 0]} fontSize={0.12} color="#d8a34b" letterSpacing={0.08}>AURA / 01</Text>
     </group>
@@ -157,11 +165,21 @@ function App() {
   const [customized, setCustomized] = useState(false)
   const [saved, setSaved] = useState(false)
   const [notice, setNotice] = useState('System ready')
+  const [customParts, setCustomParts] = useState<ComponentOption[]>([])
+  const [hiddenParts, setHiddenParts] = useState<ComponentKey[]>([])
+  const [colorOverrides, setColorOverrides] = useState<Record<string, string>>({})
+  const [shapeOverrides, setShapeOverrides] = useState<Record<string, string>>({})
+  const [notes, setNotes] = useState<Record<string, string>>({})
+  const [showCustomForm, setShowCustomForm] = useState(false)
+  const [customName, setCustomName] = useState('')
+  const [customShape, setCustomShape] = useState<ComponentOption['shape']>('box')
+  const [customColor, setCustomColor] = useState('#d18b39')
+  const customIdRef = useRef(0)
   const [history, setHistory] = useState<Record<ComponentKey, string>[]>([])
   const [future, setFuture] = useState<Record<ComponentKey, string>[]>([])
   const selectedGroup = componentGroups.find((group) => group.key === selected)!
-  const selectedOption = selectedGroup.items.find((item) => item.id === config[selected])!
-  const totalWeight = componentGroups.reduce((sum, group) => sum + group.items.find((item) => item.id === config[group.key])!.weight, 10.4)
+  const selectedOption = [...selectedGroup.items, ...customParts].find((item) => item.id === config[selected]) ?? selectedGroup.items[0]
+  const totalWeight = componentGroups.reduce((sum, group) => sum + (hiddenParts.includes(group.key) ? 0 : (group.items.find((item) => item.id === config[group.key])?.weight ?? 0)), 10.4) + activeAccessories.reduce((sum, id) => sum + (customParts.find((item) => item.id === id)?.weight ?? componentGroups.find((group) => group.key === 'accessories')!.items.find((item) => item.id === id)?.weight ?? 0), 0)
   const commitConfig = (next: Record<ComponentKey, string>) => {
     setHistory((current) => [...current, config])
     setFuture([])
@@ -179,6 +197,31 @@ function App() {
     setActiveAccessories((current) => [...current, next.id])
     commitConfig({ ...config, accessories: next.id })
     setSelected('accessories')
+  }
+  const addCustomPart = () => {
+    const name = customName.trim()
+    if (!name) return
+    customIdRef.current += 1
+    const id = `custom-${customIdRef.current}`
+    const part: ComponentOption = { id, name, description: 'User-created configurable part', weight: 0.8, color: customColor, shape: customShape }
+    setCustomParts((current) => [...current, part])
+    setActiveAccessories((current) => [...current, id])
+    setConfig((current) => ({ ...current, accessories: id }))
+    setSelected('accessories')
+    setCustomName('')
+    setShowCustomForm(false)
+    announce(`${name} added to the wheelchair`)
+  }
+  const removeSelected = () => {
+    if (selected === 'accessories') {
+      const id = config.accessories
+      setActiveAccessories((current) => current.filter((item) => item !== id))
+      setCustomParts((current) => current.filter((item) => item.id !== id))
+      announce('Accessory removed')
+      return
+    }
+    setHiddenParts((current) => current.includes(selected) ? current : [...current, selected])
+    announce(`${selectedGroup.label} hidden from the model`)
   }
   const replaceSelected = () => {
     const index = selectedGroup.items.findIndex((item) => item.id === config[selected])
@@ -200,7 +243,7 @@ function App() {
     setConfig(next)
   }
   const exportConfiguration = () => {
-    const payload = { configurationId: 'WC-26-A7F92', project: 'Custom Active // V4', units: 'mm', estimatedWeightKg: Number(totalWeight.toFixed(1)), components: config, accessories: activeAccessories, material }
+      const payload = { configurationId: 'WC-26-A7F92', project: 'Custom Active // V4', units: 'mm', estimatedWeightKg: Number(totalWeight.toFixed(1)), components: config, accessories: activeAccessories, customParts, hiddenParts, colorOverrides, shapeOverrides, notes, material }
     const blob = new Blob([JSON.stringify(payload, null, 2)], { type: 'application/json' })
     const link = document.createElement('a')
     link.href = URL.createObjectURL(blob)
@@ -213,7 +256,8 @@ function App() {
     setNotice(message)
     window.setTimeout(() => setNotice('System ready'), 2200)
   }
-  const filteredGroups = componentGroups.map((group) => ({ ...group, items: group.items.filter((item) => `${group.label} ${item.name} ${item.description}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.items.length > 0)
+  const libraryGroups = [...componentGroups.filter((group) => group.key !== 'accessories'), { key: 'accessories' as ComponentKey, label: 'Accessories', items: [...componentGroups.find((group) => group.key === 'accessories')!.items, ...customParts] }]
+  const filteredGroups = libraryGroups.map((group) => ({ ...group, items: group.items.filter((item) => `${group.label} ${item.name} ${item.description}`.toLowerCase().includes(query.toLowerCase())) })).filter((group) => group.items.length > 0)
 
   return (
     <main className="studio-shell">
@@ -228,23 +272,24 @@ function App() {
           <div className="panel-heading"><div><span className="eyebrow">BUILD SYSTEM</span><h1>Component library</h1></div><button className="icon-button" title="Library settings" onClick={() => { setActiveTab('materials'); announce('Library settings opened') }}><Settings2 size={16} /></button></div>
           <div className="tabs"><button className={activeTab === 'library' ? 'active' : ''} onClick={() => setActiveTab('library')}><Layers3 size={14} /> Components</button><button className={activeTab === 'materials' ? 'active' : ''} onClick={() => setActiveTab('materials')}><CircleHelp size={14} /> Materials</button></div>
           <label className="search-field"><Search size={15} /><input value={query} onChange={(event) => setQuery(event.target.value)} placeholder="Search components" /><span>⌘ K</span></label>
-          {activeTab === 'library' ? <div className="library-list">{filteredGroups.map((group) => <section className="library-group" key={group.key}><div className="group-label"><span>{group.label}</span><span className="count">{group.items.length.toString().padStart(2, '0')}</span></div>{group.items.map((item) => <button className={`component-row ${selected === group.key && config[group.key] === item.id ? 'selected' : ''} ${group.key === 'accessories' && activeAccessories.includes(item.id) ? 'enabled' : ''}`} key={item.id} onClick={() => { setComponent(group.key, item.id); setSelected(group.key) }}><span className="component-swatch" style={{ background: item.color }} /> <span className="component-copy"><strong>{item.name}</strong><small>{item.description}</small></span>{group.key === 'accessories' && activeAccessories.includes(item.id) ? <span className="selected-dot" /> : selected === group.key && config[group.key] === item.id && <span className="selected-dot" />}</button>)}</section>)}</div> : <div className="materials-panel"><div className="material-title">Surface library</div>{['Carbon composite', 'Brushed aluminum', 'Satin titanium', 'Technical mesh', 'Soft rubber', 'Powder coat'].map((materialName, index) => <button key={materialName} className={`material-row ${material === materialName ? 'selected' : ''}`} onClick={() => setMaterial(materialName)}><span className={`material-sample sample-${index}`} /><span>{materialName}</span>{material === materialName && <span className="selected-dot" />}</button>)}</div>}
-          <div className="library-footer"><span>{activeAccessories.length} accessory part{activeAccessories.length === 1 ? '' : 's'} active</span><button onClick={addAccessory} disabled={activeAccessories.length === 3}><Plus size={14} /> Add part</button></div>
+          {activeTab === 'library' ? <div className="library-list">{filteredGroups.map((group) => <section className="library-group" key={group.key}><div className="group-label"><span>{group.label}</span><span className="count">{group.items.length.toString().padStart(2, '0')}</span></div>{group.items.map((item) => <button className={`component-row ${selected === group.key && config[group.key] === item.id ? 'selected' : ''} ${group.key === 'accessories' && activeAccessories.includes(item.id) ? 'enabled' : ''}`} key={item.id} onClick={() => { setComponent(group.key, item.id); setSelected(group.key) }}><span className="component-swatch" style={{ background: colorOverrides[item.id] ?? item.color }} /> <span className="component-copy"><strong>{item.name}</strong><small>{item.description}</small></span>{group.key === 'accessories' && activeAccessories.includes(item.id) ? <span className="selected-dot" /> : selected === group.key && config[group.key] === item.id && <span className="selected-dot" />}</button>)}</section>)}</div> : <div className="materials-panel"><div className="material-title">Surface library</div>{['Carbon composite', 'Brushed aluminum', 'Satin titanium', 'Technical mesh', 'Soft rubber', 'Powder coat'].map((materialName, index) => <button key={materialName} className={`material-row ${material === materialName ? 'selected' : ''}`} onClick={() => setMaterial(materialName)}><span className={`material-sample sample-${index}`} /><span>{materialName}</span>{material === materialName && <span className="selected-dot" />}</button>)}</div>}
+          {showCustomForm && <div className="custom-form"><span className="eyebrow">NEW CUSTOM PART</span><input value={customName} onChange={(event) => setCustomName(event.target.value)} placeholder="Part name" /><select value={customShape} onChange={(event) => setCustomShape(event.target.value as ComponentOption['shape'])}><option value="box">Box / mount</option><option value="umbrella">Head umbrella</option><option value="headset">Sound-proof headrest</option><option value="recliner">Recliner / decliner</option></select><div className="custom-form-actions"><input type="color" value={customColor} onChange={(event) => setCustomColor(event.target.value)} /><button onClick={addCustomPart}>Add part</button><button onClick={() => setShowCustomForm(false)}>Cancel</button></div></div>}
+          <div className="library-footer"><span>{activeAccessories.length} accessory part{activeAccessories.length === 1 ? '' : 's'} active</span><button onClick={addAccessory} disabled={activeAccessories.length === 3}><Plus size={14} /> Add part</button><button onClick={() => setShowCustomForm((value) => !value)}><Plus size={14} /> Custom</button></div>
         </aside>
 
         <section className="viewport-panel">
           <div className="viewport-toolbar"><div className="mode-switch"><button className={!technical ? 'active' : ''} onClick={() => setTechnical(false)}>Presentation</button><button className={technical ? 'active' : ''} onClick={() => setTechnical(true)}>Technical</button></div><div className="viewport-status"><span className="live-dot" /> Live preview <span className="status-divider" /> <span>mm</span></div><button className="icon-button" title="Focus selected module" onClick={() => setView('isometric')}><Eye size={16} /></button></div>
-          <div className="scene-wrap"><Canvas camera={{ position: [4.6, 3.1, 5.3], fov: 42 }} shadows><color attach="background" args={['#222725']} /><fog attach="fog" args={['#222725', 7, 13]} /><WheelchairScene config={config} selected={selected} setSelected={setSelected} activeAccessories={activeAccessories} view={view} zoom={zoom} technical={technical} /><OrbitControls makeDefault enablePan={false} minDistance={3.4} maxDistance={8} target={[0, 0.8, 0]} /></Canvas><div className="scene-label"><span className="label-kicker">AURA 01</span><span>{technical ? 'TECHNICAL DIMENSION VIEW' : 'ACTIVE PERFORMANCE CHASSIS'}</span></div><div className="scene-crosshair">+</div></div>
+          <div className="scene-wrap"><Canvas camera={{ position: [4.6, 3.1, 5.3], fov: 42 }} shadows><color attach="background" args={['#222725']} /><fog attach="fog" args={['#222725', 7, 13]} /><WheelchairScene config={config} selected={selected} setSelected={setSelected} activeAccessories={activeAccessories} customParts={customParts} hiddenParts={hiddenParts} colorOverrides={colorOverrides} shapeOverrides={shapeOverrides} view={view} zoom={zoom} technical={technical} /><OrbitControls makeDefault enablePan={false} minDistance={3.4} maxDistance={8} target={[0, 0.8, 0]} /></Canvas><div className="scene-label"><span className="label-kicker">AURA 01</span><span>{technical ? 'TECHNICAL DIMENSION VIEW' : 'ACTIVE PERFORMANCE CHASSIS'}</span></div><div className="scene-crosshair">+</div></div>
           <div className="view-dock"><div className="view-list">{['isometric', 'front', 'rear', 'left', 'right', 'top'].map((item) => <button className={view === item ? 'active' : ''} key={item} onClick={() => setView(item)}>{item}</button>)}</div><button className="reset-view" onClick={() => { setView('isometric'); setZoom(1) }}><RotateCcw size={14} /> Reset view</button><div className="zoom-controls"><button onClick={() => setZoom((value) => Math.min(1.3, Number((value + 0.1).toFixed(1))))}><Minus size={15} /></button><span>{Math.round(100 / zoom)}%</span><button onClick={() => setZoom((value) => Math.max(0.7, Number((value - 0.1).toFixed(1))))}><Plus size={15} /></button></div></div>
         </section>
 
         <aside className="right-panel">
           <div className="inspector-heading"><div><span className="eyebrow">SELECTED MODULE</span><h2>{selectedGroup.label}</h2></div><button className="icon-button" title="Clear selection" onClick={() => announce('Selection remains available in the viewport')}><X size={16} /></button></div>
           <div className="selected-hero"><div className="hero-swatch" style={{ background: selectedOption.color }}><span className="hero-grid" /></div><div><span className="eyebrow">CURRENT CONFIGURATION</span><strong>{selectedOption.name}</strong><small>{selectedOption.description}</small></div></div>
-          <div className="property-stack"><div className="property"><span>Material</span><strong>{selected === 'wheels' || selected === 'frame' ? 'Carbon composite' : 'Technical textile'} <ChevronDown size={13} /></strong></div><div className="property"><span>Finish</span><strong>Studio satin <ChevronDown size={13} /></strong></div><div className="property"><span>Color</span><strong><i className="color-dot" style={{ background: selectedOption.color }} /> {selectedOption.color.toUpperCase()} <ChevronDown size={13} /></strong></div><div className="dimension-row"><div><span>Width</span><strong>{selected === 'wheels' ? '25' : '45'} <em>cm</em></strong></div><div><span>Height</span><strong>{selected === 'backrest' ? '42' : '86'} <em>cm</em></strong></div></div></div>
-          <div className="inspector-actions"><button className="primary-action" onClick={() => setCustomized((value) => !value)}>{customized ? 'Customized' : 'Customize'} <Settings2 size={14} /></button><button className="secondary-action" onClick={replaceSelected}>Replace</button></div>
+          <div className="property-stack"><div className="property"><span>Material</span><strong>{material} <ChevronDown size={13} /></strong></div><div className="property"><span>Shape</span><select className="inline-select" value={shapeOverrides[selectedOption.id] ?? selectedOption.shape ?? 'box'} onChange={(event) => setShapeOverrides((current) => ({ ...current, [selectedOption.id]: event.target.value }))}><option value="box">Box / mount</option><option value="umbrella">Umbrella</option><option value="headset">Sound-proof</option><option value="recliner">Recliner</option></select></div><div className="property"><span>Color</span><strong><input className="color-input" type="color" value={colorOverrides[selectedOption.id] ?? selectedOption.color} onChange={(event) => setColorOverrides((current) => ({ ...current, [selectedOption.id]: event.target.value }))} /> { (colorOverrides[selectedOption.id] ?? selectedOption.color).toUpperCase()}</strong></div><div className="dimension-row"><div><span>Width</span><strong>{selected === 'wheels' ? '25' : '45'} <em>cm</em></strong></div><div><span>Height</span><strong>{selected === 'backrest' ? '42' : '86'} <em>cm</em></strong></div></div></div>
+          <div className="inspector-actions"><button className="primary-action" onClick={() => setCustomized((value) => !value)}>{customized ? 'Customized' : 'Customize'} <Settings2 size={14} /></button><button className="secondary-action" onClick={replaceSelected}>Replace</button><button className="remove-action" onClick={removeSelected}>Remove</button></div>
           <div className="compatibility"><div className="compat-heading"><span className="live-dot" /> Compatibility check <strong>Compatible</strong></div><p>Mounting points align with the Rigid Performance frame.</p></div>
-          <div className="notes"><div className="section-label">Component note <button onClick={() => announce('Note editor opened')}>+</button></div><p>Keep chassis as narrow as possible while preserving lateral support.</p></div>
+          <div className="notes"><div className="section-label">Component note <button onClick={() => announce('Note editor opened')}>+</button></div><textarea value={notes[selectedOption.id] ?? ''} onChange={(event) => setNotes((current) => ({ ...current, [selectedOption.id]: event.target.value }))} placeholder="Add a manufacturer note for this part..." /></div>
           <div className="spec-card"><div className="spec-card-top"><span className="eyebrow">LIVE SPECIFICATION</span><span className="valid-pill">● VALID</span></div><div className="spec-line"><span>Estimated weight</span><strong>{totalWeight.toFixed(1)} kg</strong></div><div className="spec-line"><span>Configuration ID</span><strong>WC-26-A7F92</strong></div><div className="spec-line"><span>Last saved</span><strong>{saved ? 'Just now' : '2 min ago'}</strong></div></div>
         </aside>
       </div>
